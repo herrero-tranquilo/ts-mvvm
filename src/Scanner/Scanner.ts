@@ -1,5 +1,3 @@
-import type { ViewModelKey } from "../typing";
-
 import { Binder, BinderItem } from "../ViewModel/Binder/Binder";
 
 export class Scanner {
@@ -16,7 +14,7 @@ export class Scanner {
     return binder;
   }
   checkItem(binder: InstanceType<typeof Binder>, el: Element) {
-    const vm = el.getAttribute("data-viewmodel") as ViewModelKey;
+    const vm = el.getAttribute("data-viewmodel") as string;
     if (vm) binder.add(new BinderItem(el as HTMLElement, vm));
   }
 }

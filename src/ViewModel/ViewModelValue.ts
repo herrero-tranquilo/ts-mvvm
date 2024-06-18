@@ -1,16 +1,11 @@
-import type { ViewModelKey, ProcessCategory } from "../typing";
+import type { ProcessCategory } from "../typing";
 
 export class ViewModelValue {
-  subKey: ViewModelKey | ProcessCategory;
+  subKey: string;
   cat: ProcessCategory;
-  k: ViewModelKey | ProcessCategory;
-  v: object;
-  constructor(
-    subKey: ViewModelKey | ProcessCategory,
-    cat: ProcessCategory,
-    k: ViewModelKey | ProcessCategory,
-    v: object
-  ) {
+  k: ProcessCategory | string;
+  v: any;
+  constructor(subKey: string, cat: ProcessCategory, k: ProcessCategory | string, v: any) {
     this.subKey = subKey;
     this.cat = cat;
     this.k = k;

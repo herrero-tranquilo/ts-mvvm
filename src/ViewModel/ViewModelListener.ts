@@ -1,13 +1,12 @@
-import { Binder } from "./Binder/Binder";
-import { ViewModel, ViewModelValue } from "./ViewModel";
+import { ViewModelValue } from "./ViewModel";
 
 export { ViewModelListener };
 
-const ViewModelListener = class {
+class ViewModelListener {
   viewmodelUpdated(
-    _target: InstanceType<typeof ViewModel | typeof Binder>,
+    _target: InstanceType<typeof ViewModelListener>,
     _updated: Set<InstanceType<typeof ViewModelValue>>
   ) {
     throw "override";
   }
-};
+}

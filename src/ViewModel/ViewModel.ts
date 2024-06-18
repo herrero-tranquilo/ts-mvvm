@@ -1,108 +1,128 @@
-import type { ViewModelKey, ProcessCategory } from "../typing";
+import type { KeyAbles, ViewModelParams } from "../typing";
 
-import { Binder } from "./Binder/Binder";
 import { ViewModelListener } from "./ViewModelListener";
 
 import { ViewModelValue } from "./ViewModelValue";
 
 export { ViewModel, ViewModelValue };
 
-class ViewModel extends ViewModelListener {
-  static get(data: {
-    [key in ViewModelKey | ProcessCategory]?: boolean | object | Function | InstanceType<typeof ViewModel>;
-  }) {
-    return new ViewModel(data);
-  }
-  static #subjects = new Set<InstanceType<typeof ViewModel>>();
+class ViewModelSubject extends ViewModelListener {
+  static #subjects = new Set<InstanceType<typeof ViewModelSubject>>();
   static #inited = false;
-  static notify(vm: InstanceType<typeof ViewModel>) {
-    this.#subjects.add(vm);
-    if (this.#inited) return;
-    this.#inited = true;
+
+  private info = new Set<InstanceType<typeof ViewModelValue>>();
+  private listeners = new Set<InstanceType<typeof ViewModelListener>>();
+
+  private static notify() {
     const f = (_: number) => {
-      this.#subjects.forEach((vm) => {
-        if (vm.#isUpdated.size) {
-          vm.notify();
-          vm.#isUpdated.clear();
+      this.#subjects.forEach((v) => {
+        if (v.info.size) {
+          v.notify();
+          v.clear();
         }
       });
-      requestAnimationFrame(f);
+      if (this.#inited) requestAnimationFrame(f);
     };
     requestAnimationFrame(f);
   }
-  static define(vm: InstanceType<typeof ViewModel>, cat: ProcessCategory, obj: object) {
-    return Object.defineProperties(
-      obj,
-      (Object.entries(obj) as [ProcessCategory, object][]).reduce((r, [k, v]) => {
-        r[k] = {
-          enumerable: true,
-          get: () => v,
-          set: (newV) => {
-            v = newV;
-            vm.#isUpdated.add(new ViewModelValue(vm.subKey, cat, k, v));
-          },
-        };
-        return r;
-      }, {} as PropertyDescriptorMap & ThisType<any>)
-    );
+  private static watch(vm: InstanceType<typeof ViewModelSubject>) {
+    this.#subjects.add(vm);
+    if (!this.#inited) {
+      this.#inited = true;
+      this.notify();
+    }
   }
+  private static unwatch(vm: InstanceType<typeof ViewModelSubject>) {
+    this.#subjects.delete(vm);
+    if (!this.#subjects.size) this.#inited = false;
+  }
+
+  add(v: InstanceType<typeof ViewModelValue>) {
+    this.info.add(v);
+  }
+  clear() {
+    this.info.clear();
+  }
+  addListener(v: InstanceType<typeof ViewModelListener>) {
+    this.listeners.add(v);
+    ViewModelSubject.watch(this);
+  }
+  removeListener(v: InstanceType<typeof ViewModelListener>) {
+    this.listeners.delete(v);
+    if (!this.listeners.size) ViewModelSubject.unwatch(this);
+  }
+  notify() {
+    this.listeners.forEach((v) => v.viewmodelUpdated(this, this.info));
+  }
+}
+
+class ViewModel<T = ViewModelParams> extends ViewModelSubject {
+  static get<T extends ViewModelParams>(data: T) {
+    return new ViewModel<T>(data);
+  }
+
+  private _subkey: KeyAbles = "";
+  private _parent: InstanceType<typeof ViewModel> | null = null;
 
   isStop?: boolean;
   changeContents?: Function;
-
-  wrapper?: InstanceType<typeof ViewModel>;
-  title?: InstanceType<typeof ViewModel>;
-  contents?: InstanceType<typeof ViewModel>;
-  input?: InstanceType<typeof ViewModel>;
 
   styles = {};
   attributes = {};
   properties = {};
   events = {};
 
-  subKey: ViewModelKey | ProcessCategory = "";
-  parent: InstanceType<typeof ViewModel> | null = null;
-
-  #isUpdated = new Set<InstanceType<typeof ViewModelValue>>();
-  #listeners = new Set<InstanceType<typeof ViewModel | typeof Binder>>();
-
-  constructor(data: {
-    [key in ViewModelKey | ProcessCategory]?: boolean | object | Function | InstanceType<typeof ViewModel>;
-  }) {
+  constructor(data: ViewModelParams) {
     super();
-    (Object.entries(data) as [ViewModelKey | ProcessCategory, object][]).forEach(([k, v]) => {
-      if (k == "styles" || k == "attributes" || k == "properties") {
-        if (!v || typeof v != "object") throw `invalid object k:${k}, v:${v}`;
-        this[k] = ViewModel.define(this, k, v);
+    (Object.entries(data) as [KeyAbles, InstanceType<typeof ViewModel> | object | boolean][]).forEach(([cat, obj]) => {
+      if (cat == "styles" || cat == "attributes" || cat == "properties") {
+        if (!obj || typeof obj != "object") throw `invalid object cat: ${cat}, obj: ${obj}`;
+
+        this[cat] = Object.defineProperties(
+          {},
+          (Object.entries(obj) as [string, any]).reduce((r, [k, v]) => {
+            r[k] = {
+              enumerable: true,
+              get: () => v,
+              set: (newV: object) => {
+                v = newV;
+                this.add(new ViewModelValue(this.subkey, cat, k, v));
+              },
+            };
+            return r;
+          }, {} as PropertyDescriptorMap)
+        );
       } else {
-        Object.defineProperty(this, k, {
-          enumerable: true,
-          get: () => v,
-          set: (newV) => {
-            v = newV;
-            this.#isUpdated.add(new ViewModelValue(this.subKey, "", k, v));
+        Object.defineProperties(this, {
+          [cat]: {
+            enumerable: true,
+            get: () => obj,
+            set: (newV: object | boolean) => {
+              console.log(22);
+              obj = newV;
+              this.add(new ViewModelValue(this.subkey, "", cat, obj));
+            },
           },
         });
-        if (v instanceof ViewModel) {
-          v.parent = this;
-          v.subKey = k;
-          v.addListener(this);
-        }
+        if (obj instanceof ViewModel) obj.setParent(this, cat);
       }
     });
-    ViewModel.notify(this);
     Object.seal(this);
   }
+
+  private setParent(parent: InstanceType<typeof ViewModel>, _subkey: KeyAbles) {
+    this._parent = parent;
+    this._subkey = _subkey;
+    this.addListener(parent);
+  }
+
   viewmodelUpdated(_target: InstanceType<typeof ViewModel>, updated: Set<InstanceType<typeof ViewModelValue>>) {
-    updated.forEach((v) => this.#isUpdated.add(v));
+    updated.forEach((v) => this.add(v));
   }
-  addListener(v: InstanceType<typeof ViewModel | typeof Binder>) {
-    this.#listeners.add(v);
+  get subkey() {
+    return this._subkey;
   }
-  removeListener(v: InstanceType<typeof ViewModel | typeof Binder>) {
-    this.#listeners.delete(v);
-  }
-  notify() {
-    this.#listeners.forEach((v) => v.viewmodelUpdated(this, this.#isUpdated));
+  get parent() {
+    return this._parent;
   }
 }

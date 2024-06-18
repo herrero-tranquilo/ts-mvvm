@@ -19,49 +19,39 @@ const setup = (element: Element, viewmodel: InstanceType<typeof ViewModel>) => {
   binder.watch(viewmodel);
 };
 
-const wrapper = {
-  styles: {
-    width: "50%",
-    background: "#ffa",
-    cursor: "pointer",
-  },
-  events: {
-    click(_: MouseEvent, vm: InstanceType<typeof ViewModel>) {
-      if (vm?.parent?.isStop) vm.parent.isStop = true;
-    },
-  },
-};
-const title = {
-  properties: {
-    innerHTML: "Title",
-  },
-};
-const contents = {
-  properties: {
-    innerHTML: "Contents",
-  },
-};
-const input = {
-  properties: {
-    value: "Title",
-  },
-  events: {
-    input(e: KeyboardEvent, _vm: InstanceType<typeof ViewModel>) {
-      if (e.isComposing) return;
-      input.properties.value = (e.target as HTMLInputElement)?.value;
-    },
-    blur(e: FocusEvent, _vm: InstanceType<typeof ViewModel>) {
-      input.properties.value = (e.target as HTMLInputElement).value.trim();
-    },
-  },
-};
-
 const viewmodel = ViewModel.get({
   isStop: false,
-  wrapper: ViewModel.get(wrapper),
-  title: ViewModel.get(title),
-  contents: ViewModel.get(contents),
-  input: ViewModel.get(input),
+  wrapper: ViewModel.get({
+    styles: {
+      width: "50%",
+      background: "#ffa",
+      cursor: "pointer",
+    },
+  }),
+  title: ViewModel.get({
+    properties: {
+      innerHTML: "Title",
+    },
+  }),
+  contents: ViewModel.get({
+    properties: {
+      innerHTML: "Contents",
+    },
+  }),
+  input: ViewModel.get({
+    properties: {
+      value: "Title",
+    },
+    events: {
+      input(e: KeyboardEvent, vm: InstanceType<typeof ViewModel>) {
+        if (e.isComposing) return;
+        vm.parent.title.properties.innerHTML = (e.target as HTMLInputElement)?.value;
+      },
+      blur(e: FocusEvent, vm: InstanceType<typeof ViewModel>) {
+        vm.properties.value = (e.target as HTMLInputElement).value.trim();
+      },
+    },
+  }),
 });
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `

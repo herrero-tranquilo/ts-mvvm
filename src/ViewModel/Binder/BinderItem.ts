@@ -1,10 +1,8 @@
-import type { ViewModelKey } from "../../typing";
-
 export class BinderItem {
   el: HTMLElement;
-  viewmodel: ViewModelKey;
+  viewmodel: string;
 
-  constructor(el: HTMLElement, viewmodel: ViewModelKey) {
+  constructor(el: HTMLElement, viewmodel: string) {
     this.el = el;
     this.viewmodel = viewmodel;
     Object.freeze(this);

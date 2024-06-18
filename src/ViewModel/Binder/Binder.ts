@@ -1,4 +1,4 @@
-import type { ProcessoresEntries, ViewModelKey, ProcessCategory } from "../../typing";
+import type { ProcessoresEntries, ProcessCategory } from "../../typing";
 
 import { Processor } from "../../Processor/Processor";
 import { ViewModelListener } from "../ViewModelListener";
@@ -20,11 +20,11 @@ export class Binder extends ViewModelListener {
 
   viewmodelUpdated(target: InstanceType<typeof ViewModel>, updated: Set<InstanceType<typeof ViewModelValue>>) {
     type Item = [InstanceType<typeof ViewModel>, HTMLElement];
-    const items: { [key in ViewModelKey | ProcessCategory]?: Item } = {};
+    const items: { [key in ProcessCategory | string]?: Item } = {};
 
     this.#items.forEach((item) => {
-      const vm = target[item.viewmodel];
-      if (typeof vm != "object") return;
+      const vm = target[item.viewmodel as keyof ViewModel];
+      if (!(vm instanceof ViewModel)) return;
       items[item.viewmodel] = [vm, item.el];
     });
     updated.forEach((v) => {
@@ -51,8 +51,8 @@ export class Binder extends ViewModelListener {
   render(viewmodel: InstanceType<typeof ViewModel>) {
     const processores = Object.entries(this.#processors) as ProcessoresEntries;
     this.#items.forEach((item) => {
-      const vm = viewmodel[item.viewmodel];
-      if (typeof vm != "object") return;
+      const vm = viewmodel[item.viewmodel as keyof ViewModel];
+      if (!vm || !(vm instanceof ViewModel)) return;
 
       const el = item.el;
       processores.forEach(([pk, processor]) => {
